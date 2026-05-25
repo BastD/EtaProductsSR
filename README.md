@@ -1,9 +1,9 @@
 # Symbolic Regression of Modular Forms via Transformers
 
-This repository contains the code accompanying the paper *"Symbolic Regression
-of Eta Product Formulas from q-Series Expansions"*. The goal is to recover, from
-the first Fourier coefficients of a modular form on `Γ₀(N)`, an explicit
-**eta product formula** that reproduces those coefficients — i.e. a
+This repository contains the code accompanying the paper *"Algorithmic and ML approaches to power series of
+transcendental functions - I: A study of eta products
+and holomorphic modular forms"*, arxiv number. The goal is to recover, from
+the first Fourier coefficients of a modular form on some congruence group `Γ` of ` SL(2,Z)`, an explicit **eta product formula** that reproduces those coefficients — i.e. a
 seq2seq problem mapping
 
 ```
@@ -37,17 +37,11 @@ Core model code, shared by training and analysis. Provides:
 
 - **Vocabulary and tokenization.** Tokens for the eta-product grammar: the
   `eta(m)` factors, integer exponents up to `±EXP_MAX`, the `COEFF_PH`
-  placeholder for relative coefficients, and the structural tokens (`+`, `·`,
-  `BOS`, `EOS`, `PAD`).
+  placeholder for relative coefficients, and the structural tokens (`+`,`MUTL` ,`PAD`,...).
 - **q-series embedding.** Sign + magnitude embedding of the input
   coefficients, with positional encoding indexed by the power of `q`.
 - **Transformer encoder–decoder.** Pre-LN blocks, `d_model=256`, 4+4 layers,
   8 heads by default. Configurable from CLI in `train_tf_sr.py`.
-- **Syntax masking.** During decoding, the logits are masked according to the
-  current parser state so that only grammatically legal continuations have
-  non-zero probability (e.g. after an opening `eta(` only integers in the
-  allowed range are emitted). This is used both at training time as a sanity
-  check and at inference time inside the beam search.
 - **Beam search.** Length-normalized beam search returning the top-`B`
   skeletons together with their log-probabilities, suitable for downstream
   brute-force coefficient recovery.
@@ -77,7 +71,7 @@ python dataset_generator.py \
     --max_arg 6 \
     --max_k 12 \
     --max_coeff 20 \
-    --out_dir /work/bduboeuf/eta_product/data_3term_1M \
+    --out_dir eta_product/data_3term_1M \
     --seed 0 \
     --n_workers 32
 ```
@@ -86,31 +80,18 @@ This writes a sharded dataset (`shard_XXXX.pt`) plus a `meta.json` with the
 generation parameters. Duplicate formulas are filtered by canonical form
 before being written.
 
-### Useful flags
-
-| Flag | Description |
-|---|---|
-| `--max_terms` | Maximum number of summed eta products (1 → monomial; 3 → 3-term sum) |
-| `--max_factors` | Max number of `η` factors per term |
-| `--max_arg` | Max value of `m` in `η(m τ)` |
-| `--max_k` | Length of the q-series window (input length) |
-| `--max_coeff` | Max absolute value of relative integer coefficients |
-| `--n_workers` | Multiprocessing workers (uses `forkserver`) |
-| `--filter_zero` | Drop formulas whose q-series is identically zero in the window |
 
 ## `train_tf_sr.py`
 
 Trains the transformer in skeleton mode on a generated dataset.
-The script handles checkpointing, graceful shutdown (SIGTERM/SIGINT save a
-checkpoint before exiting — useful on HTCondor preemption), and auto-resume
-from the latest checkpoint in `--out_dir`.
+The script handles checkpointing, auto-resume from the latest checkpoint in `--out_dir`.
 
 ### Minimal example
 
 ```bash
 python train_tf_sr.py \
-    --data_dir /work/bduboeuf/eta_product/data_3term_1M \
-    --out_dir  /work/bduboeuf/eta_product/results_3term/run_1M \
+    --data_dir eta_product/data_3term_1M \
+    --out_dir  eta_product/results_3term/run_1M \
     --d_model 256 \
     --n_enc 4 --n_dec 4 --n_heads 8 \
     --batch_size 512 \
@@ -120,40 +101,6 @@ python train_tf_sr.py \
     --val_every 2000 \
     --use_periodic
 ```
-
-### HTCondor submit (sketch)
-
-```
-universe              = vanilla
-executable            = run_train.sh
-arguments             = $(Cluster) $(Process)
-should_transfer_files = no
-request_gpus          = 1
-gpus_minimum_capability = 8.0
-gpus_minimum_memory   = 40000
-requirements          = (CUDACapability >= 8.0)
-queue 1
-```
-
-The wrapper script (`run_train.sh`) re-invokes `train_tf_sr.py` with the
-same `--out_dir` so that, on requeue, training resumes from the last
-checkpoint.
-
-### Key flags
-
-| Flag | Description |
-|---|---|
-| `--data_dir` | Sharded dataset produced by `dataset_generator.py` |
-| `--out_dir` | Checkpoints, logs, and TensorBoard events |
-| `--d_model`, `--n_enc`, `--n_dec`, `--n_heads`, `--d_ff` | Architecture |
-| `--use_periodic` | Periodic positional encoding for the q-series input |
-| `--label_smoothing` | Cross-entropy label smoothing (default 0.0) |
-| `--val_every` | Validation interval in steps |
-| `--max_steps` | Total training budget |
-
-> ⚠ Watch out for inline `#--flag` comments in your bash invocation — they
-> silently swallow arguments and have, in the past, disabled
-> `--use_periodic` without warning.
 
 ## `analyze_prediction.py`
 
@@ -220,14 +167,6 @@ python analyze_prediction.py --ckpt runs/2term_1M/best.pt \
 ## Citation
 
 ```bibtex
-@article{duboeuf2026etaproduct,
-  title  = {Symbolic Regression of Eta Product Formulas from q-Series Expansions},
-  author = {Duboeuf, Bastien and ...},
-  year   = {2026}
+@article{
 }
 ```
-
-## Acknowledgements
-
-Computations were carried out on the *Hypatia* HTCondor cluster at the
-Albert Einstein Institute (AEI), Hannover.
