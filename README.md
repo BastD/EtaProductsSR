@@ -19,6 +19,16 @@ The broader research program (not all of it released here) explores related
 modular-forms problems: predicting bases for Serre modular forms, and detecting
 Swinnerton-Dyer congruences as anomaly-detection in eigenform coefficients.
 
+## Cloning the repo 
+
+Some files are quite heavy, so we had to use Large Storage File. You may need to pull them as follow 
+
+```
+git lfs install
+git clone https://github.com/BastD/EtaProductsSR.git>
+git lfs pull
+```
+
 ## Repository layout
 
 ```
